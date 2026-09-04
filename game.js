@@ -28,8 +28,9 @@ const player = {
     y: canvas.height / 2 - 50,
     width: 12,
     height: 100,
-    speed: 7,
-    dy: 0
+    speed: 0,
+    dy: 0,
+    targetY: canvas.height / 2 - 50
 };
 
 const ai = {
@@ -43,25 +44,57 @@ const ai = {
 let playerScore = 0;
 let aiScore = 0;
 let gameRunning = false;
-let touchX = null;
+let isTouching = false;
 
-// Touch controls
-document.addEventListener('touchmove', (e) => {
+// Touch controls - drag the paddle
+document.addEventListener('touchstart', (e) => {
     if (!gameRunning) return;
-    const touch = e.touches[0];
-    touchX = touch.clientX;
+    isTouching = true;
+    handleTouchMove(e);
+});
+
+document.addEventListener('touchmove', (e) => {
+    if (!gameRunning || !isTouching) return;
+    handleTouchMove(e);
     e.preventDefault();
 });
 
 document.addEventListener('touchend', () => {
-    touchX = null;
+    isTouching = false;
 });
 
+function handleTouchMove(e) {
+    const touch = e.touches[0];
+    const canvasRect = canvas.getBoundingClientRect();
+    const touchY = touch.clientY - canvasRect.top;
+    
+    // 设置挡板目标位置为触摸点的Y坐标（挡板中心对齐触摸点）
+    player.targetY = touchY - player.height / 2;
+}
+
 // Mouse controls for desktop testing
-document.addEventListener('mousemove', (e) => {
+document.addEventListener('mousedown', (e) => {
     if (!gameRunning) return;
-    touchX = e.clientX;
+    isTouching = true;
+    handleMouseMove(e);
 });
+
+document.addEventListener('mousemove', (e) => {
+    if (!gameRunning || !isTouching) return;
+    handleMouseMove(e);
+});
+
+document.addEventListener('mouseup', () => {
+    isTouching = false;
+});
+
+function handleMouseMove(e) {
+    const canvasRect = canvas.getBoundingClientRect();
+    const mouseY = e.clientY - canvasRect.top;
+    
+    // 设置挡板目标位置为鼠标点的Y坐标（挡板中心对齐鼠标点）
+    player.targetY = mouseY - player.height / 2;
+}
 
 // Start game
 startBtn.addEventListener('click', () => {
@@ -87,23 +120,15 @@ function updateScores() {
     aiScoreDisplay.textContent = aiScore;
 }
 
-// Update player paddle with touch/mouse
+// Update player paddle with smooth dragging
 function updatePlayer() {
-    if (touchX !== null) {
-        const canvasRect = canvas.getBoundingClientRect();
-        const touchRelative = touchX - canvasRect.left;
-        
-        // Left side moves paddle up, right side moves paddle down
-        if (touchRelative < canvas.width / 2) {
-            player.dy = -player.speed;
-        } else {
-            player.dy = player.speed;
-        }
+    // 平滑移动挡板到目标位置
+    const diff = player.targetY - player.y;
+    if (Math.abs(diff) > 2) {
+        player.y += diff * 0.2; // 平滑系数
     } else {
-        player.dy = 0;
+        player.y = player.targetY;
     }
-
-    player.y += player.dy;
 
     // Keep player paddle in bounds
     if (player.y < 0) player.y = 0;
